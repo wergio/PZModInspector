@@ -1,11 +1,11 @@
 # PZ Mod Inspector
 
-A Windows program that checks your **Project Zomboid (Build 42 and later)** mods without launching the game.
+A Windows program that checks your **Project Zomboid** mods without launching the game.
 
 Ever wanted to debug your mod problems without losing your mind? Calmly, outside the game: PZ Mod Inspector helps
 you do exactly that!
 
-It reads the game's files **read-only**: it never changes your saves or your mod folders.
+It reads the game's files **read-only**: it never changes your saves or your mod folders. Build 41 not supported, only Build 42+.
 
 ## What it does
 
