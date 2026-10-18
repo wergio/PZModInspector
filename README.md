@@ -32,6 +32,21 @@ It reads the game's files **read-only**: it never changes your saves or your mod
     copy, and which copy the game actually uses.
 - **Diff**: with an external compare tool, compares the copy the game uses with the one that overwrites it.
 
+## Download
+
+Get the latest version from the [Releases page](https://github.com/wergio/PZModInspector/releases/latest).
+There are two options:
+
+- **Installer** (`PZModInspector-Setup-<version>.exe`, recommended). It installs for
+  the current user, without admin rights.
+  If the .NET runtimes are missing, it downloads them from Microsoft and installs them
+  (this step asks for admin rights once). Run a newer installer to update.
+- **Portable** (`PZModInspector.exe` and `PZModInspectorCLI.exe`). Nothing to install: put the file in a folder
+  of your choice and start it. 
+
+The files are not code-signed yet, so Windows SmartScreen may show "Windows protected your
+PC": choose **More info → Run anyway**.
+
 ## Workshop data
 
 It comes from the **official Steam Web API**, with a key you request from Steam (it's free) at

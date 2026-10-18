@@ -1,5 +1,6 @@
 using System.Text.Json;
 using PZModInspector.Cli;
+using PZModInspector.Core;
 using PZModInspector.Core.Settings;
 
 namespace PZModInspector.Tests;
@@ -21,13 +22,15 @@ public class CliTests
     }
 
     [Fact]
-    public async Task Version_is_the_one_of_Directory_Build_props()
+    public async Task Version_is_the_one_of_the_build_without_the_commit()
     {
         using var tree = Tree();
         var (code, output, _) = await Run(tree, "--version");
 
         Assert.Equal(0, code);
-        Assert.Equal("PZModInspectorCLI 1.0.0", output.Trim());
+        // 1.0.0 from Directory.Build.props, or the version of the release tag (1.1.0-beta.1): never "+commit".
+        Assert.Matches(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$", AppInfo.Version);
+        Assert.Equal($"PZModInspectorCLI {AppInfo.Version}", output.Trim());
     }
 
     [Fact]
