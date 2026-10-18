@@ -1,3 +1,4 @@
+using PZModInspector.Core;
 using PZModInspector.Core.Environment;
 using PZModInspector.Core.Localization;
 using PZModInspector.Core.Settings;
@@ -5,17 +6,17 @@ using PZModInspector.Core.Settings;
 namespace PZModInspector.Cli;
 
 /// <summary>
-/// pzmi: the analysis of PZ Mod Inspector from the command line, for a terminal or for Claude. English only, whatever the
+/// PZModInspectorCLI: the analysis of PZ Mod Inspector from the command line, for a terminal or for Claude. English only, whatever the
 /// language of the program. Read only on the game's files; only "refresh" sends requests to Steam.
 /// </summary>
 public static class Cli
 {
-    private const string Usage = """
-        pzmi: the analyses of PZ Mod Inspector from the command line.
+    private static readonly string Usage = $"""
+        PZModInspectorCLI {AppInfo.Version}: the analyses of PZ Mod Inspector from the command line.
         It reads the mods and the game's files read only. Workshop data comes from the program's cache:
         only "refresh" asks Steam.
 
-        Usage: pzmi <command> [arguments] [options]
+        Usage: PZModInspectorCLI <command> [arguments] [options]
 
         Commands
           report                     summary and problems of the mod list (--info: notes too)
@@ -28,6 +29,7 @@ public static class Cli
           sources                    the mod lists: default.txt and the saves
           env                        paths found, game version, ignored folders
           refresh                    asks Steam for the Workshop data now (--force: recent data too)
+          version                    the version of PZModInspectorCLI (also --version)
 
         Options
           --source <list>   default, latest, Mode/Save or just the save name
@@ -46,6 +48,11 @@ public static class Cli
             if (parsed.Command == "help")
             {
                 output.WriteLine(Usage);
+                return 0;
+            }
+            if (parsed.Command == "version")
+            {
+                output.WriteLine($"PZModInspectorCLI {AppInfo.Version}");
                 return 0;
             }
 
@@ -75,7 +82,7 @@ public static class Cli
                 "overwritten" or "conflicts" => commands.Overwritten(),
                 "log" => commands.Log(),
                 "refresh" => await commands.RefreshAsync(),
-                _ => throw new CliUsageException($"Unknown command: {parsed.Command}. See pzmi help."),
+                _ => throw new CliUsageException($"Unknown command: {parsed.Command}. See PZModInspectorCLI help."),
             };
         }
         catch (CliUsageException ex)

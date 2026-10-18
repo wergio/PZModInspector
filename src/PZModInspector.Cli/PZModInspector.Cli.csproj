@@ -4,8 +4,8 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>PZModInspector.Cli</RootNamespace>
-    <!-- Short name to type in a terminal: pzmi report, pzmi log... -->
-    <AssemblyName>pzmi</AssemblyName>
+    <!-- Named after the program, so it is clear what it is: PZModInspectorCLI report, PZModInspectorCLI log... -->
+    <AssemblyName>PZModInspectorCLI</AssemblyName>
     <ApplicationIcon>..\..\assets\PZModInspector.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en;it</SatelliteResourceLanguages>
   </PropertyGroup>

@@ -8,7 +8,7 @@ using PZModInspector.Core.Workshop;
 
 namespace PZModInspector.Cli;
 
-/// <summary>Where pzmi takes settings, cache and folders from: the program's own by default, fake ones in tests.</summary>
+/// <summary>Where PZModInspectorCLI takes settings, cache and folders from: the program's own by default, fake ones in tests.</summary>
 /// <param name="Environment">Null: detected like the window does, with the paths of the Settings.</param>
 /// <param name="OnlineClient">Used only by "refresh": every other command reads the Workshop cache and sends nothing to Steam.</param>
 public sealed record CliHost(AppSettings Settings, string WorkshopCachePath, Func<PzEnvironment>? Environment = null,
@@ -117,6 +117,6 @@ internal sealed class Session
 
         public Task<IReadOnlyList<WorkshopItemDetails>> GetDetailsAsync(IReadOnlyCollection<ulong> ids, string? apiKey,
             CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("Only \"pzmi refresh\" asks Steam.");
+            throw new InvalidOperationException("Only \"PZModInspectorCLI refresh\" asks Steam.");
     }
 }

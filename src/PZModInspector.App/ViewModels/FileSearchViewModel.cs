@@ -38,7 +38,7 @@ public sealed class FileMatchRowViewModel
             sides.Add(new DiffSide(gamePath, Loc.Instance["Log.BaseGame"]));
         sides.AddRange(owners.Select(o => new DiffSide(o.AbsolutePath, Label(o))));
         DiffSides = sides;
-        // In load order, like pzmi file: the arrow marks the copies the game reads.
+        // In load order, like PZModInspectorCLI file: the arrow marks the copies the game reads.
         CopiesTip = string.Join("\n", FileCopyRow.From(relativePath, owners, context)
             .Select(c => $"{(c.IsUsed ? "→" : "   ")} {c.Text} · {c.Note}\n     {c.Path}"));
     }

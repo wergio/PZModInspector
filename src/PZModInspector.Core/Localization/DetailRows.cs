@@ -28,7 +28,7 @@ public sealed record DependencyRow(string Id, string Name, string Status, Severi
 
 public sealed record DependencyGroup(string Title, IReadOnlyList<DependencyRow> Items);
 
-/// <summary>The localized rows shown for a mod and for the environment, the same in the window and in pzmi.</summary>
+/// <summary>The localized rows shown for a mod and for the environment, the same in the window and in PZModInspectorCLI.</summary>
 public static class DetailRows
 {
     private static Loc L => Loc.Instance;

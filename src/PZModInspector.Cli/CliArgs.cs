@@ -1,12 +1,12 @@
 namespace PZModInspector.Cli;
 
-/// <summary>Wrong command line: pzmi prints the message (and exits with 1).</summary>
+/// <summary>Wrong command line: PZModInspectorCLI prints the message (and exits with 1).</summary>
 public sealed class CliUsageException(string message) : Exception(message);
 
-/// <summary>"pzmi &lt;command&gt; [arguments] [--flag] [--option value]", options anywhere.</summary>
+/// <summary>"PZModInspectorCLI &lt;command&gt; [arguments] [--flag] [--option value]", options anywhere.</summary>
 internal sealed class CliArgs
 {
-    public static readonly string[] Commands = ["help", "sources", "env", "report", "mods", "mod", "file", "overwritten", "conflicts", "log", "refresh"];
+    public static readonly string[] Commands = ["help", "sources", "env", "report", "mods", "mod", "file", "overwritten", "conflicts", "log", "refresh", "version"];
     private static readonly HashSet<string> Flags = ["json", "info", "lua", "text", "binary", "files", "errors", "mods", "force", "all"];
     private static readonly HashSet<string> Options = ["source", "mod"];
 
@@ -38,6 +38,11 @@ internal sealed class CliArgs
                 command = "help";
                 continue;
             }
+            if (arg is "--version")
+            {
+                command = "version";
+                continue;
+            }
             if (arg.StartsWith("--", StringComparison.Ordinal))
             {
                 var name = arg[2..].ToLowerInvariant();
@@ -46,7 +51,7 @@ internal sealed class CliArgs
                 else if (Options.Contains(name))
                     result._options[name] = i + 1 < args.Count ? args[++i] : throw new CliUsageException($"Missing value for {arg}.");
                 else
-                    throw new CliUsageException($"Unknown option: {arg}. See pzmi help.");
+                    throw new CliUsageException($"Unknown option: {arg}. See PZModInspectorCLI help.");
                 continue;
             }
             if (command is null)
@@ -57,7 +62,7 @@ internal sealed class CliArgs
 
         command ??= "help";
         if (!Commands.Contains(command))
-            throw new CliUsageException($"Unknown command: {command}. See pzmi help.");
+            throw new CliUsageException($"Unknown command: {command}. See PZModInspectorCLI help.");
         result.Command = command;
         return result;
     }

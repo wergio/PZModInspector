@@ -4,7 +4,7 @@ using PZModInspector.Core.Settings;
 
 namespace PZModInspector.Tests;
 
-/// <summary>pzmi on a fake Zomboid folder. Nothing goes to Steam: the commands read the (empty) cache.</summary>
+/// <summary>PZModInspectorCLI on a fake Zomboid folder. Nothing goes to Steam: the commands read the (empty) cache.</summary>
 public class CliTests
 {
     [Fact]
@@ -18,6 +18,16 @@ public class CliTests
         Assert.Equal("Sandbox/Test", args.Source);
         Assert.Throws<CliUsageException>(() => CliArgs.Parse(["report", "--nope"]));
         Assert.Throws<CliUsageException>(() => CliArgs.Parse(["dance"]));
+    }
+
+    [Fact]
+    public async Task Version_is_the_one_of_Directory_Build_props()
+    {
+        using var tree = Tree();
+        var (code, output, _) = await Run(tree, "--version");
+
+        Assert.Equal(0, code);
+        Assert.Equal("PZModInspectorCLI 1.0.0", output.Trim());
     }
 
     [Fact]
@@ -90,7 +100,7 @@ public class CliTests
 
     private static async Task<(int Code, string Output, string Error)> Run(TestTree tree, params string[] args)
     {
-        // Italian in the settings: pzmi speaks English anyway.
+        // Italian in the settings: PZModInspectorCLI speaks English anyway.
         var host = new CliHost(new AppSettings { Language = "it" }, Path.Combine(tree.Root, "cache.json"), () => tree.Environment());
         using var output = new StringWriter();
         using var error = new StringWriter();

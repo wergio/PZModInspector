@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using PZModInspector.Core;
 using PZModInspector.Core.Analysis;
 using PZModInspector.Core.Localization;
 using PZModInspector.Core.Logs;
@@ -92,7 +93,7 @@ internal sealed class Commands(Session session, CliArgs args, TextWriter writer)
             _out.Line();
             if (!args.Has("info") && d.Infos > 0)
                 _out.Line($"{d.Infos} informational notes not shown: add --info.");
-            _out.Line($"Overwritten files: {d.FileConflicts} (pzmi overwritten).");
+            _out.Line($"Overwritten files: {d.FileConflicts} (PZModInspectorCLI overwritten).");
         });
     }
 
@@ -122,7 +123,7 @@ internal sealed class Commands(Session session, CliArgs args, TextWriter writer)
 
     public int ModDetails()
     {
-        var entry = ResolveMod(args.Text ?? throw new CliUsageException("Say which mod: pzmi mod <id, Workshop id or part of the name>."));
+        var entry = ResolveMod(args.Text ?? throw new CliUsageException("Say which mod: PZModInspectorCLI mod <id, Workshop id or part of the name>."));
         var result = session.Result;
         var lost = result.Conflicts.Where(c => c.Overridden.Any(o => o.ModId == entry.Id)).Select(c => FileRow(c, c.Winner));
         var won = result.Conflicts.Where(c => c.Winner.ModId == entry.Id).Select(c => FileRow(c, c.Overridden[^1]));
@@ -169,7 +170,7 @@ internal sealed class Commands(Session session, CliArgs args, TextWriter writer)
 
     public int FindFile()
     {
-        var query = args.Text ?? throw new CliUsageException("Say which file: pzmi file <name or path>, also with * and ?.");
+        var query = args.Text ?? throw new CliUsageException("Say which file: PZModInspectorCLI file <name or path>, also with * and ?.");
         var files = session.Files;
         var paths = files.MatchPaths(query);
         var limit = args.Has("all") ? int.MaxValue : FileLimit;
@@ -307,13 +308,13 @@ internal sealed class Commands(Session session, CliArgs args, TextWriter writer)
         return 0;
     }
 
-    private HeaderDto Header() => new(session.Source.Key, Text.SourceTitle(session.Source), session.Environment.GameVersion.ToString(),
+    private HeaderDto Header() => new(AppInfo.Version, session.Source.Key, Text.SourceTitle(session.Source), session.Environment.GameVersion.ToString(),
         session.Inspector.Workshop.LastDetailsFetch, session.Host.Settings.SteamApiKeyProtected is not null);
 
     private void PrintHeader(HeaderDto header)
     {
         var workshop = header.WorkshopDataUtc is null
-            ? "no Workshop data in cache (pzmi refresh)"
+            ? "no Workshop data in cache (PZModInspectorCLI refresh)"
             : L.Format("Status.WorkshopOk", Text.Date(header.WorkshopDataUtc));
         if (!header.HasApiKey)
             workshop += " · " + L["Status.NoApiKey"];

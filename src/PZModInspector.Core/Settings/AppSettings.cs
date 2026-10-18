@@ -15,7 +15,7 @@ public sealed class AppSettings
 
     /// <summary>
     /// Outside AppData on purpose: Windows gives packaged (MSIX) apps, like the Claude desktop app, a private copy of what
-    /// they write in AppData, so pzmi started from Claude and the program started from Windows would see different files.
+    /// they write in AppData, so PZModInspectorCLI started from Claude and the program started from Windows would see different files.
     /// </summary>
     public static string DataDirectory { get; } =
         Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), "PZModInspector");

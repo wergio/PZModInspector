@@ -4,7 +4,7 @@ namespace PZModInspector.Cli;
 
 // What every command prints: the text output is made from these records, --json prints them as they are.
 
-internal sealed record HeaderDto(string Source, string SourceTitle, string GameVersion, DateTimeOffset? WorkshopDataUtc, bool HasApiKey);
+internal sealed record HeaderDto(string InspectorVersion, string Source, string SourceTitle, string GameVersion, DateTimeOffset? WorkshopDataUtc, bool HasApiKey);
 
 internal sealed record SourceDto(string Key, string Title, string ModsFile, DateTimeOffset? LastPlayedUtc, bool IsLatestSave, bool Selected);
 

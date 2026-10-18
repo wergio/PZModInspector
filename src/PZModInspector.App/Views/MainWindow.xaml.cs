@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using PZModInspector.App.ViewModels;
+using PZModInspector.Core;
 using PZModInspector.Core.Localization;
 using PZModInspector.Core.Settings;
 
@@ -20,6 +21,7 @@ public partial class MainWindow : Window
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        Title = $"PZ Mod Inspector {AppInfo.Version}";
         _viewModel = viewModel;
         DataContext = viewModel;
         ShowDetails(viewModel.DetailsVisible);
