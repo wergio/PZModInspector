@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>PZModInspector.App</RootNamespace>
+    <AssemblyName>PZModInspector</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\PZModInspector.ico</ApplicationIcon>
+    <!-- ThemeMode (Fluent theme, light/dark from Windows) is still marked experimental. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <SatelliteResourceLanguages>en;it</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PZModInspector.Core\PZModInspector.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The same icon as the exe, for the title bar of the windows. -->
+    <Resource Include="..\..\assets\PZModInspector.ico" Link="Assets\PZModInspector.ico" />
+  </ItemGroup>
+
+</Project>

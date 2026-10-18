@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>PZModInspector.Cli</RootNamespace>
+    <!-- Short name to type in a terminal: pzmi report, pzmi log... -->
+    <AssemblyName>pzmi</AssemblyName>
+    <ApplicationIcon>..\..\assets\PZModInspector.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en;it</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PZModInspector.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PZModInspector.Core\PZModInspector.Core.csproj" />
+  </ItemGroup>
+
+</Project>

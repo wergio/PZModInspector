@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.1.0</Version>
+    <Authors>Daniele Vergini</Authors>
+    <Product>PZ Mod Inspector</Product>
+    <Copyright>Copyright © 2026 Daniele Vergini</Copyright>
+    <NeutralLanguage>en</NeutralLanguage>
+    <!-- Symbols inside the dlls: no loose .pdb next to the published exe, line numbers kept in stack traces. -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">embedded</DebugType>
+  </PropertyGroup>
+</Project>

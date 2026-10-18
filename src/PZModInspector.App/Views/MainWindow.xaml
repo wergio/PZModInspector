@@ -1,0 +1,767 @@
+<Window x:Class="PZModInspector.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="clr-namespace:PZModInspector.App.Localization"
+        xmlns:v="clr-namespace:PZModInspector.App.Views"
+        Title="PZ Mod Inspector" Icon="/Assets/PZModInspector.ico"
+        Width="1480" Height="920" MinWidth="1000" MinHeight="620"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized">
+    <Window.Resources>
+        <Style x:Key="WrapCell" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="CenterCell" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="TrimCell" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <!-- Section titles of the small details panel of the Console tab. -->
+        <Style x:Key="PanelSection" TargetType="TextBlock" BasedOn="{StaticResource SectionHeader}">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="0,12,0,4" />
+        </Style>
+        <!-- A copy of a file in a loaded mod (FileCopyRow): the arrow marks the one the game uses. -->
+        <DataTemplate x:Key="FileCopyTemplate">
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="18" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="→" FontWeight="SemiBold" Visibility="{Binding IsUsed, Converter={StaticResource BoolToVisibility}}" />
+                <StackPanel Grid.Column="1">
+                    <WrapPanel>
+                        <Button Content="{Binding Text}" Style="{StaticResource LinkButton}"
+                                Command="{Binding DataContext.SelectModCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SelectId}"
+                                Visibility="{Binding SelectId, Converter={StaticResource HasValue}}" />
+                        <TextBlock Text="{Binding Text}" Visibility="{Binding SelectId, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                        <TextBlock Style="{StaticResource SecondaryText}">
+                            <Run Text=" · " /><Run Text="{Binding Note, Mode=OneWay}" />
+                        </TextBlock>
+                    </WrapPanel>
+                    <TextBox Text="{Binding Path, Mode=OneWay}" Style="{StaticResource ValueBox}" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+        <!-- A real button, but small enough not to make the rows of a list taller. -->
+        <Style x:Key="GridButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,1" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,1" />
+        </Style>
+        <Style x:Key="PlaceholderText" TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="11,0,0,0" />
+        </Style>
+        <!-- Same look as the clear button of the Fluent TextBox (DeleteButtonStyle), which the theme shows only with focus. -->
+        <Style x:Key="ClearTextButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Margin" Value="0,4,4,4" />
+            <Setter Property="Foreground" Value="{DynamicResource TextControlButtonForeground}" />
+            <Setter Property="Background" Value="{DynamicResource TextControlButtonBackground}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="{DynamicResource ControlCornerRadius}">
+                            <TextBlock Text="&#xE894;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
+                                       Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource TextControlButtonBackgroundPointerOver}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource TextControlButtonBackgroundPressed}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!--
+            The Fluent column header puts its resize grips inside its 4,0 padding: the area with the resize cursor is 4px
+            away from the separator line on both sides. Same template with the grips outside the padding, centred on the line.
+        -->
+        <Style x:Key="ColumnGripper" TargetType="Thumb">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="SizeWE" />
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="{TemplateBinding Background}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ColumnHeader" TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+            <!-- The description of the column, when it has one (v:ColumnInfo.Tip). -->
+            <Setter Property="ToolTip" Value="{Binding Column.(v:ColumnInfo.Tip), RelativeSource={RelativeSource Self}}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridColumnHeader">
+                        <Grid>
+                            <Border BorderBrush="{TemplateBinding SeparatorBrush}" Visibility="{TemplateBinding SeparatorVisibility}" BorderThickness="0,0,1,0" />
+                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                    <TextBlock x:Name="SortIndicator" Grid.Column="1" VerticalAlignment="Top" Visibility="Hidden"
+                                               Margin="{DynamicResource DataGridSortIndicatorIconMargin}" FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                               FontSize="{DynamicResource DataGridSortIndicatorIconFontSize}" Text="&#xF090;" />
+                                </Grid>
+                            </Border>
+                            <Thumb x:Name="PART_LeftHeaderGripper" HorizontalAlignment="Left" Style="{StaticResource ColumnGripper}" />
+                            <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right" Style="{StaticResource ColumnGripper}" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource DataGridHeaderBackgroundPointerOver}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource DataGridHeaderBorderBrushPointerOver}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource DataGridHeaderBackgroundPressed}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource DataGridHeaderBorderBrushPressed}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="{DynamicResource DataGridHeaderBackgroundDisabled}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource DataGridHeaderBorderBrushDisabled}" />
+                            </Trigger>
+                            <Trigger Property="SortDirection" Value="Ascending">
+                                <Setter TargetName="SortIndicator" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="SortIndicator" Property="Text" Value="&#xF090;" />
+                            </Trigger>
+                            <Trigger Property="SortDirection" Value="Descending">
+                                <Setter TargetName="SortIndicator" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="SortIndicator" Property="Text" Value="&#xF08E;" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- Right click on a header of the mod list: which columns to show. Filled when it opens. -->
+        <ContextMenu x:Key="ModColumnsMenu" Opened="ModColumnsMenu_Opened" />
+        <Style x:Key="ModColumnHeader" TargetType="DataGridColumnHeader" BasedOn="{StaticResource ColumnHeader}">
+            <Setter Property="ContextMenu" Value="{StaticResource ModColumnsMenu}" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="14,12,14,10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="200" />
+            <RowDefinition Height="8" />
+            <RowDefinition Height="270" MinHeight="110" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Source and actions -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="False">
+            <TextBlock Text="{l:Loc Toolbar.Source}" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" />
+            <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding SelectedSource}" Width="400">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Subtitle}" Style="{StaticResource SecondaryText}" FontSize="12" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Content="{l:Loc Toolbar.Reload}" ToolTip="{l:Loc Toolbar.Reload.Tip}" Command="{Binding ReloadCommand}" Margin="10,0,0,0" />
+            <Button Content="{l:Loc Toolbar.RefreshWorkshop}" ToolTip="{l:Loc Toolbar.RefreshWorkshop.Tip}" Command="{Binding RefreshWorkshopCommand}" Margin="8,0,0,0" />
+            <Button DockPanel.Dock="Right" Content="{l:Loc Toolbar.Settings}" Command="{Binding OpenSettingsCommand}" />
+        </DockPanel>
+
+        <!-- Search, sort, filters -->
+        <DockPanel Grid.Row="1" Margin="0,0,0,10">
+            <TextBlock Text="{l:Loc Filter.Label}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <Grid Width="320">
+                <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Loaded="ClearableBox_Loaded">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Escape" Command="{Binding ClearSearchCommand}" />
+                    </TextBox.InputBindings>
+                </TextBox>
+                <TextBlock Text="{l:Loc Filter.Search}" Style="{StaticResource PlaceholderText}"
+                           Visibility="{Binding SearchText, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                <Button Style="{StaticResource ClearTextButton}" HorizontalAlignment="Right" Command="{Binding ClearSearchCommand}"
+                        ToolTip="{l:Loc Filter.Clear}" Visibility="{Binding SearchText, Converter={StaticResource HasValue}}" />
+            </Grid>
+            <CheckBox Content="{l:Loc Filter.OnlyProblems}" IsChecked="{Binding OnlyProblems}" Margin="18,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding SummaryText}" Style="{StaticResource SecondaryText}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="12,0,0,0" />
+        </DockPanel>
+
+        <!-- Mods and details -->
+        <!-- The details column is collapsed in code (MainWindow.ShowDetails): the splitter writes its width. -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition x:Name="DetailsSplitterColumn" Width="8" />
+                <ColumnDefinition x:Name="DetailsColumn" Width="470" MinWidth="320" />
+            </Grid.ColumnDefinitions>
+
+            <DataGrid x:Name="ModsGrid" Grid.Column="0" ItemsSource="{Binding RowsView}" SelectedItem="{Binding SelectedRow}"
+                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow"
+                      HeadersVisibility="Column" GridLinesVisibility="None" CanUserSortColumns="True"
+                      CanUserReorderColumns="True" CanUserResizeColumns="True" EnableRowVirtualization="True"
+                      ColumnHeaderStyle="{StaticResource ModColumnHeader}" Sorting="ModsGrid_Sorting"
+                      PreviewMouseLeftButtonUp="ModsGrid_PreviewMouseLeftButtonUp">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLoaded}" Value="False">
+                                <Setter Property="Opacity" Value="0.6" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+                <!--
+                    Widths in pixels, not stars: columns keep the width the user gives them and the grid scrolls horizontally.
+                    v:ColumnInfo.Key names the column in the saved layout: keep it when a column changes.
+                -->
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn v:ColumnInfo.Key="Status" v:ColumnInfo.Tip="{l:Loc Column.Status.Tip}" Width="36" ClipboardContentBinding="{Binding StatusTip}" SortMemberPath="StatusRank" CanUserSort="True">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Ellipse Style="{StaticResource SeverityDot}" ToolTip="{Binding StatusTip}" HorizontalAlignment="Center" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn v:ColumnInfo.Key="LoadIndex" v:ColumnInfo.Tip="{l:Loc Column.LoadIndex.Tip}" Header="#" Binding="{Binding LoadIndex}"
+                                        SortMemberPath="LoadSortKey" SortDirection="Ascending" Width="48" ElementStyle="{StaticResource CenterCell}" />
+                    <DataGridTextColumn v:ColumnInfo.Key="ListIndex" v:ColumnInfo.Tip="{l:Loc Column.ListIndex.Tip}" Header="{l:Loc Column.ListIndex}" Binding="{Binding ListIndex}"
+                                        SortMemberPath="ListSortKey" Width="70" ElementStyle="{StaticResource CenterCell}" Visibility="Collapsed" />
+                    <DataGridTextColumn v:ColumnInfo.Key="WorkshopTitle" v:ColumnInfo.Tip="{l:Loc Column.WorkshopTitle.Tip}" Header="{l:Loc Column.WorkshopTitle}" Binding="{Binding WorkshopTitle}"
+                                        Width="280" ElementStyle="{StaticResource CenterCell}" />
+                    <DataGridTextColumn v:ColumnInfo.Key="Name" v:ColumnInfo.Tip="{l:Loc Column.Name.Tip}" Header="{l:Loc Column.Name}" Binding="{Binding Name}"
+                                        Width="300" ElementStyle="{StaticResource CenterCell}" Visibility="Collapsed" />
+                    <DataGridTextColumn v:ColumnInfo.Key="Id" v:ColumnInfo.Tip="{l:Loc Column.Id.Tip}" Header="{l:Loc Column.Id}" Binding="{Binding Id}"
+                                        Width="280" ElementStyle="{StaticResource CenterCell}" />
+                    <DataGridTextColumn v:ColumnInfo.Key="WorkshopId" v:ColumnInfo.Tip="{l:Loc Column.WorkshopId.Tip}" Header="{l:Loc Column.WorkshopId}" Binding="{Binding WorkshopId}"
+                                        Width="110" ElementStyle="{StaticResource CenterCell}" Visibility="Collapsed" />
+                    <DataGridTextColumn v:ColumnInfo.Key="Version" v:ColumnInfo.Tip="{l:Loc Column.Version.Tip}" Header="{l:Loc Column.Version}" Binding="{Binding Version}"
+                                        Width="78" ElementStyle="{StaticResource CenterCell}" />
+                    <DataGridTextColumn v:ColumnInfo.Key="Updated" v:ColumnInfo.Tip="{l:Loc Column.Updated.Tip}" Header="{l:Loc Column.Updated}" Binding="{Binding UpdatedText}"
+                                        SortMemberPath="Updated" Width="110" ElementStyle="{StaticResource CenterCell}" />
+                    <DataGridTextColumn v:ColumnInfo.Key="Problems" v:ColumnInfo.Tip="{l:Loc Column.Problems.Tip}" Header="{l:Loc Column.Problems}" Binding="{Binding ProblemsText}"
+                                        Width="420" ElementStyle="{StaticResource CenterCell}" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <GridSplitter x:Name="DetailsSplitter" Grid.Column="1" Width="8" HorizontalAlignment="Stretch" Background="Transparent" />
+
+            <Border x:Name="DetailsCard" Grid.Column="2" Style="{StaticResource Card}">
+                <Grid>
+                    <TextBlock Text="{l:Loc Details.Empty}" Style="{StaticResource SecondaryText}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24"
+                               Visibility="{Binding SelectedRow, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                    <ScrollViewer x:Name="DetailsScroll" DataContext="{Binding SelectedRow}" Visibility="{Binding Converter={StaticResource HasValue}}"
+                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="18,14,18,18">
+                            <Image Source="{Binding Poster}" MaxHeight="220" Stretch="Uniform" HorizontalAlignment="Left" Margin="0,0,0,12"
+                                   Visibility="{Binding Poster, Converter={StaticResource HasValue}}" />
+                            <!-- Right margin: the close button is above the text when there is no poster. -->
+                            <TextBlock Text="{Binding Name}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,24,0" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Ellipse Style="{StaticResource SeverityDot}" Margin="0,0,6,0" />
+                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryText}" />
+                                <TextBlock Text="  ·  " Style="{StaticResource SecondaryText}" />
+                                <TextBlock Text="{Binding Id}" Style="{StaticResource SecondaryText}" />
+                            </StackPanel>
+
+                            <WrapPanel Margin="0,12,0,0">
+                                <Button Content="{l:Loc Details.OpenWorkshop}" Margin="0,0,6,6"
+                                        Command="{Binding DataContext.OpenLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding WorkshopUrl}"
+                                        Visibility="{Binding WorkshopUrl, Converter={StaticResource HasValue}}" />
+                                <Button Content="{l:Loc Details.OpenInSteam}" Margin="0,0,6,6"
+                                        Command="{Binding DataContext.OpenLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SteamUrl}"
+                                        Visibility="{Binding SteamUrl, Converter={StaticResource HasValue}}" />
+                                <Button Content="{l:Loc Details.ChangeNotes}" Margin="0,0,6,6"
+                                        Command="{Binding DataContext.OpenLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding ChangeNotesUrl}"
+                                        Visibility="{Binding ChangeNotesUrl, Converter={StaticResource HasValue}}" />
+                                <Button Content="{l:Loc Details.OpenFolder}" Margin="0,0,6,6"
+                                        Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding FolderPath}"
+                                        Visibility="{Binding FolderPath, Converter={StaticResource HasValue}}" />
+                                <Button Content="{l:Loc Details.OpenModInfo}" Margin="0,0,6,6"
+                                        Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding ModInfoPath}"
+                                        Visibility="{Binding ModInfoPath, Converter={StaticResource HasValue}}" />
+                            </WrapPanel>
+
+                            <TextBlock Text="{l:Loc Details.Problems}" Style="{StaticResource SectionHeader}" />
+                            <TextBlock Text="{l:Loc Details.NoProblems}" Style="{StaticResource SecondaryText}"
+                                       Visibility="{Binding Issues, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                            <ItemsControl ItemsSource="{Binding Issues}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse Style="{StaticResource SeverityDot}" VerticalAlignment="Top" Margin="0,5,10,0" ToolTip="{Binding SeverityText}" />
+                                            <TextBox Grid.Column="1" Text="{Binding Message, Mode=OneWay}" Style="{StaticResource ValueBox}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="{l:Loc Details.Info}" Style="{StaticResource SectionHeader}" />
+                            <ItemsControl ItemsSource="{Binding InfoRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="165" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Label}" Style="{StaticResource SecondaryText}" Margin="0,0,10,0" />
+                                            <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" Style="{StaticResource ValueBox}"
+                                                     Visibility="{Binding Link, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                                            <Button Grid.Column="1" Content="{Binding Value}" Style="{StaticResource LinkButton}"
+                                                    Command="{Binding DataContext.OpenLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Link}"
+                                                    Visibility="{Binding Link, Converter={StaticResource HasValue}}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="{l:Loc Details.Dependencies}" Style="{StaticResource SectionHeader}"
+                                       Visibility="{Binding Dependencies, Converter={StaticResource HasValue}}" />
+                            <ItemsControl ItemsSource="{Binding Dependencies}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,10">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="6,2,0,4">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Ellipse Style="{StaticResource SeverityDot}" VerticalAlignment="Top" Margin="0,5,10,0" />
+                                                            <StackPanel Grid.Column="1">
+                                                                <Button Content="{Binding Name}" Style="{StaticResource LinkButton}"
+                                                                        Command="{Binding DataContext.SelectModCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SelectId}"
+                                                                        Visibility="{Binding SelectId, Converter={StaticResource HasValue}}" />
+                                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
+                                                                           Visibility="{Binding SelectId, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                                                                <TextBlock Style="{StaticResource SecondaryText}" FontSize="12">
+                                                                    <Run Text="{Binding Id, Mode=OneWay}" />
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                            <StackPanel Grid.Column="2" Margin="10,0,0,0" HorizontalAlignment="Right">
+                                                                <TextBlock Text="{Binding Status}" Style="{StaticResource SecondaryText}" HorizontalAlignment="Right" />
+                                                                <Button Content="Workshop" Style="{StaticResource LinkButton}" HorizontalAlignment="Right" FontSize="12"
+                                                                        Command="{Binding DataContext.OpenLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Link}"
+                                                                        Visibility="{Binding Link, Converter={StaticResource HasValue}}" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="{l:Loc Details.Description}" Style="{StaticResource SectionHeader}"
+                                       Visibility="{Binding Description, Converter={StaticResource HasValue}}" />
+                            <TextBox Text="{Binding Description, Mode=OneWay}" Style="{StaticResource ValueBox}"
+                                     Visibility="{Binding Description, Converter={StaticResource HasValue}}" />
+
+                            <Expander Header="{l:Loc Details.WorkshopDescription}" Margin="0,16,0,0"
+                                      Visibility="{Binding WorkshopDescription, Converter={StaticResource HasValue}}">
+                                <TextBox Text="{Binding WorkshopDescription, Mode=OneWay}" Style="{StaticResource ValueBox}" Margin="0,8,0,0" />
+                            </Expander>
+
+                            <Expander Header="{Binding FilesLostHeader}" Margin="0,10,0,0" Visibility="{Binding FilesLost, Converter={StaticResource HasValue}}">
+                                <ItemsControl ItemsSource="{Binding FilesLost}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,0,0,6">
+                                                <!-- The file opens "Find files" on it; the mod below selects it. -->
+                                                <Button Content="{Binding Path}" Style="{StaticResource LinkButton}" ToolTip="{Binding FullPath}"
+                                                        Command="{Binding DataContext.FindFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding RelativePath}" />
+                                                <DockPanel>
+                                                    <TextBlock Text="{l:Loc Files.ModPrefix}" Style="{StaticResource SecondaryText}" FontSize="12" Margin="0,0,4,0" />
+                                                    <Button Content="{Binding OtherModName}" Style="{StaticResource LinkButton}" FontSize="12"
+                                                            Command="{Binding DataContext.SelectModCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding OtherModId}" />
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Expander>
+
+                            <Expander Header="{Binding FilesWonHeader}" Margin="0,10,0,0" Visibility="{Binding FilesWon, Converter={StaticResource HasValue}}">
+                                <ItemsControl ItemsSource="{Binding FilesWon}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,0,0,6">
+                                                <!-- The file opens "Find files" on it; the mod below selects it. -->
+                                                <Button Content="{Binding Path}" Style="{StaticResource LinkButton}" ToolTip="{Binding FullPath}"
+                                                        Command="{Binding DataContext.FindFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding RelativePath}" />
+                                                <DockPanel>
+                                                    <TextBlock Text="{l:Loc Files.ModPrefix}" Style="{StaticResource SecondaryText}" FontSize="12" Margin="0,0,4,0" />
+                                                    <Button Content="{Binding OtherModName}" Style="{StaticResource LinkButton}" FontSize="12"
+                                                            Command="{Binding DataContext.SelectModCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding OtherModId}" />
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Expander>
+
+                            <Expander Header="{l:Loc Details.Copies}" Margin="0,10,0,0" Visibility="{Binding OtherCopies, Converter={StaticResource HasValue}}">
+                                <ItemsControl ItemsSource="{Binding OtherCopies}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Mode=OneWay}" Style="{StaticResource ValueBox}" Margin="0,0,0,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Expander>
+
+                            <Expander Header="{l:Loc Details.RawModInfo}" Margin="0,10,0,0" Visibility="{Binding RawModInfo, Converter={StaticResource HasValue}}">
+                                <ItemsControl ItemsSource="{Binding RawModInfo}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="130" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Label}" Style="{StaticResource SecondaryText}" FontFamily="Consolas" />
+                                                <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" Style="{StaticResource ValueBox}" FontFamily="Consolas" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <Button Style="{StaticResource ClearTextButton}" Width="32" Height="32" Margin="0,6,6,0"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Command="{Binding CloseDetailsCommand}" ToolTip="{l:Loc Details.Close}" />
+                </Grid>
+            </Border>
+        </Grid>
+
+        <GridSplitter Grid.Row="3" Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeDirection="Rows" Background="Transparent" />
+
+        <!-- Problems, conflicts, environment -->
+        <!-- SelectedIndex: the order of the tabs is MainViewModel.FileSearchTab and the others. -->
+        <TabControl Grid.Row="4" SelectedIndex="{Binding SelectedTabIndex}">
+            <TabItem Header="{Binding ProblemsHeader}">
+                <DockPanel Margin="0,8,0,0">
+                    <!-- Tab bars are DockPanels, not horizontal StackPanels: the last text gets the width that is left and wraps. -->
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <CheckBox Content="{l:Loc Problems.Errors}" IsChecked="{Binding ShowErrors}" VerticalAlignment="Center" />
+                        <CheckBox Content="{l:Loc Problems.Warnings}" IsChecked="{Binding ShowWarnings}" Margin="16,0,0,0" VerticalAlignment="Center" />
+                        <CheckBox Content="{l:Loc Problems.Info}" IsChecked="{Binding ShowInfo}" Margin="16,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{l:Loc Problems.Hint}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center" Margin="20,0,0,0" />
+                    </DockPanel>
+                    <!-- Bottom lists: pixel widths like the mod list; v:ColumnInfo.Key names the column for the saved widths. -->
+                    <DataGrid x:Name="IssuesGrid" ColumnHeaderStyle="{StaticResource ColumnHeader}" ItemsSource="{Binding IssuesView}" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None" SelectionMode="Single" MouseDoubleClick="IssuesGrid_DoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn v:ColumnInfo.Key="Status" Width="36" SortMemberPath="Rank" ClipboardContentBinding="{Binding SeverityText}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Ellipse Style="{StaticResource SeverityDot}" HorizontalAlignment="Center" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn v:ColumnInfo.Key="Severity" Header="{l:Loc Problems.Column.Severity}" Binding="{Binding SeverityText}" SortMemberPath="Rank" Width="90" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="Mod" Header="{l:Loc Problems.Column.Mod}" Binding="{Binding ModName}" Width="240" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="Message" Header="{l:Loc Problems.Column.Message}" Binding="{Binding Message}" Width="1000" ElementStyle="{StaticResource WrapCell}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="{Binding ConflictsHeader}">
+                <DockPanel Margin="0,8,0,0">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Grid Width="300" VerticalAlignment="Center">
+                            <TextBox Text="{Binding ConflictFilter, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="{l:Loc Conflicts.Search}" Style="{StaticResource PlaceholderText}"
+                                       Visibility="{Binding ConflictFilter, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                        </Grid>
+                        <!-- Same order as MainViewModel.ConflictKind. -->
+                        <ComboBox SelectedIndex="{Binding ConflictKindIndex}" MinWidth="160" Margin="16,0,0,0" VerticalAlignment="Center">
+                            <ComboBoxItem Content="{l:Loc Conflicts.Kind.All}" />
+                            <ComboBoxItem Content="{l:Loc Conflicts.Kind.Lua}" />
+                            <ComboBoxItem Content="{l:Loc Conflicts.Kind.Text}" />
+                            <ComboBoxItem Content="{l:Loc Conflicts.Kind.Binary}" />
+                        </ComboBox>
+                        <TextBlock Text="{l:Loc Conflicts.Hint}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center" Margin="20,0,0,0" />
+                    </DockPanel>
+                    <DataGrid x:Name="ConflictsGrid" ColumnHeaderStyle="{StaticResource ColumnHeader}" ItemsSource="{Binding ConflictsView}" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None" SelectionMode="Single" EnableRowVirtualization="True"
+                              MouseDoubleClick="ConflictsGrid_DoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn v:ColumnInfo.Key="File" Header="{l:Loc Conflicts.Column.File}" Binding="{Binding File}" Width="560" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="Winner" Header="{l:Loc Conflicts.Column.Winner}" Binding="{Binding Winner}" Width="320" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="Overridden" Header="{l:Loc Conflicts.Column.Overridden}" Binding="{Binding Overridden}" Width="420" ElementStyle="{StaticResource WrapCell}" />
+                            <DataGridTemplateColumn x:Name="ConflictsDiffColumn" v:ColumnInfo.Key="Diff" Width="76" MinWidth="70" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{l:Loc Diff.Button}" ToolTip="{l:Loc Diff.Button.Tip}" Style="{StaticResource GridButton}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                Command="{Binding DataContext.DiffCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="{l:Loc Tabs.FileSearch}">
+                <DockPanel Margin="0,8,0,0" DataContext="{Binding FileSearch}">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Grid Width="420" VerticalAlignment="Center">
+                            <TextBox Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" Loaded="ClearableBox_Loaded">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Escape" Command="{Binding ClearCommand}" />
+                                </TextBox.InputBindings>
+                            </TextBox>
+                            <TextBlock Text="{l:Loc FileSearch.Search}" Style="{StaticResource PlaceholderText}"
+                                       Visibility="{Binding Query, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                            <Button Style="{StaticResource ClearTextButton}" HorizontalAlignment="Right" Command="{Binding ClearCommand}"
+                                    ToolTip="{l:Loc Filter.Clear}" Visibility="{Binding Query, Converter={StaticResource HasValue}}" />
+                        </Grid>
+                        <TextBlock Text="{Binding SummaryText}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center" Margin="16,0,0,0"
+                                   MaxWidth="360" Visibility="{Binding SummaryText, Converter={StaticResource HasValue}}" />
+                        <TextBlock Text="{l:Loc FileSearch.Hint}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center" Margin="20,0,0,0" />
+                    </DockPanel>
+                    <DataGrid x:Name="FilesGrid" ColumnHeaderStyle="{StaticResource ColumnHeader}" ItemsSource="{Binding Results}" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None" SelectionMode="Single" EnableRowVirtualization="True"
+                              MouseDoubleClick="FilesGrid_DoubleClick">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Setter Property="ToolTip" Value="{Binding CopiesTip}" />
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn v:ColumnInfo.Key="File" Header="{l:Loc Conflicts.Column.File}" Binding="{Binding File}" Width="560" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="Winner" Header="{l:Loc Conflicts.Column.Winner}" Binding="{Binding Winner}" Width="320" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="Overridden" Header="{l:Loc Conflicts.Column.Overridden}" Binding="{Binding Overridden}" Width="420" ElementStyle="{StaticResource WrapCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="InGame" Header="{l:Loc FileSearch.Column.InGame}" Binding="{Binding InGameText}" Width="130" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTemplateColumn x:Name="FilesDiffColumn" v:ColumnInfo.Key="Diff" Width="76" MinWidth="70" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{l:Loc Diff.Button}" ToolTip="{l:Loc Diff.Button.Tip}" Style="{StaticResource GridButton}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                Command="{Binding DataContext.DiffCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding CanDiff, Converter={StaticResource BoolToVisibility}}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="{Binding Log.Header}">
+                <DockPanel Margin="0,8,0,0" DataContext="{Binding Log}">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button Content="{l:Loc Log.Reload}" ToolTip="{l:Loc Log.Reload.Tip}" Command="{Binding ReloadCommand}" />
+                        <Button Content="{l:Loc Log.Choose}" ToolTip="{l:Loc Log.Choose.Tip}" Command="{Binding ChooseCommand}" Margin="8,0,0,0" />
+                        <Button Content="{l:Loc Log.UseConsoleTxt}" Command="{Binding UseConsoleTxtCommand}" Margin="8,0,0,0"
+                                Visibility="{Binding IsCustomPath, Converter={StaticResource BoolToVisibility}}" />
+                        <CheckBox Content="{l:Loc Log.OnlyErrors}" IsChecked="{Binding OnlyErrors}" Margin="16,0,0,0" VerticalAlignment="Center" />
+                        <CheckBox Content="{l:Loc Log.OnlyMods}" IsChecked="{Binding OnlyMods}" Margin="16,0,0,0" VerticalAlignment="Center" />
+                        <ProgressBar Width="40" Height="4" IsIndeterminate="True" Margin="12,0,0,0" VerticalAlignment="Center"
+                                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                        <Button Content="{Binding FilePath}" Style="{StaticResource LinkButton}" ToolTip="{l:Loc Log.ShowFile}" VerticalAlignment="Center" Margin="16,0,0,0"
+                                Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding FilePath}" />
+                        <TextBlock Text="{Binding SummaryText}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                    </DockPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="360" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="520" MinWidth="280" />
+                        </Grid.ColumnDefinitions>
+                        <DataGrid x:Name="LogGrid" ColumnHeaderStyle="{StaticResource ColumnHeader}" ItemsSource="{Binding GroupsView}" SelectedItem="{Binding SelectedGroup}" AutoGenerateColumns="False"
+                                  IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None" SelectionMode="Single" EnableRowVirtualization="True"
+                                  MouseDoubleClick="LogGrid_DoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn v:ColumnInfo.Key="Status" Width="36" SortMemberPath="Rank" ClipboardContentBinding="{Binding SeverityText}">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Ellipse Style="{StaticResource SeverityDot}" HorizontalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn v:ColumnInfo.Key="Severity" Header="{l:Loc Problems.Column.Severity}" Binding="{Binding SeverityText}" SortMemberPath="Rank" Width="80" ElementStyle="{StaticResource CenterCell}" />
+                                <DataGridTextColumn v:ColumnInfo.Key="Count" Header="{l:Loc Log.Column.Count}" Binding="{Binding Count}" Width="64" ElementStyle="{StaticResource CenterCell}" />
+                                <DataGridTextColumn v:ColumnInfo.Key="Lines" Header="{l:Loc Log.Column.Lines}" Binding="{Binding LinesText}" SortMemberPath="FirstLine" Width="110" ElementStyle="{StaticResource CenterCell}" />
+                                <DataGridTextColumn v:ColumnInfo.Key="Mods" Header="{l:Loc Problems.Column.Mod}" Binding="{Binding ModsText}" Width="200" ElementStyle="{StaticResource TrimCell}" />
+                                <DataGridTextColumn v:ColumnInfo.Key="Message" Header="{l:Loc Log.Column.Message}" Binding="{Binding Message}" Width="800" ElementStyle="{StaticResource TrimCell}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Text="{Binding EmptyText}" Style="{StaticResource SecondaryText}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Margin="24" TextAlignment="Center" IsHitTestVisible="False" Visibility="{Binding EmptyText, Converter={StaticResource HasValue}}" />
+
+                        <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" Background="Transparent" />
+
+                        <Border Grid.Column="2" Style="{StaticResource Card}">
+                            <Grid>
+                                <TextBlock Text="{l:Loc Log.SelectGroup}" Style="{StaticResource SecondaryText}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Margin="24" TextAlignment="Center"
+                                           Visibility="{Binding SelectedGroup, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                                <ScrollViewer x:Name="LogDetailsScroll" DataContext="{Binding SelectedGroup}" Visibility="{Binding Converter={StaticResource HasValue}}"
+                                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel Margin="14,10,14,14">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Style="{StaticResource SeverityDot}" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding HeaderText}" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                        <TextBox Text="{Binding Message, Mode=OneWay}" Style="{StaticResource ValueBox}" FontFamily="Consolas" Margin="0,6,0,0" />
+
+                                        <TextBlock Text="{l:Loc Log.Details.Exception}" Style="{StaticResource PanelSection}"
+                                                   Visibility="{Binding Exception, Converter={StaticResource HasValue}}" />
+                                        <TextBox Text="{Binding Exception, Mode=OneWay}" Style="{StaticResource ValueBox}" FontFamily="Consolas"
+                                                 Visibility="{Binding Exception, Converter={StaticResource HasValue}}" />
+
+                                        <TextBlock Text="{l:Loc Log.Details.Mods}" Style="{StaticResource PanelSection}"
+                                                   Visibility="{Binding Mods, Converter={StaticResource HasValue}}" />
+                                        <ItemsControl ItemsSource="{Binding Mods}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,3">
+                                                        <Button Content="{Binding Text}" Style="{StaticResource LinkButton}"
+                                                                Command="{Binding DataContext.SelectModCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding SelectId}"
+                                                                Visibility="{Binding SelectId, Converter={StaticResource HasValue}}" />
+                                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                                                                   Visibility="{Binding SelectId, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <TextBlock Text="{l:Loc Log.Details.Files}" Style="{StaticResource PanelSection}"
+                                                   Visibility="{Binding Files, Converter={StaticResource HasValue}}" />
+                                        <ItemsControl ItemsSource="{Binding Files}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Margin="0,0,0,8">
+                                                        <TextBox Text="{Binding Path, Mode=OneWay}" Style="{StaticResource ValueBox}" FontFamily="Consolas" />
+                                                        <TextBlock Text="{Binding InGameText}" Style="{StaticResource SecondaryText}" FontSize="12"
+                                                                   Visibility="{Binding InGameText, Converter={StaticResource HasValue}}" />
+                                                        <ItemsControl ItemsSource="{Binding Copies}" ItemTemplate="{StaticResource FileCopyTemplate}" Margin="4,4,0,0" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <TextBlock Text="{l:Loc Log.Details.Require}" Style="{StaticResource PanelSection}"
+                                                   Visibility="{Binding RequireText, Converter={StaticResource HasValue}}" />
+                                        <TextBox Text="{Binding RequireText, Mode=OneWay}" Style="{StaticResource ValueBox}"
+                                                 Visibility="{Binding RequireText, Converter={StaticResource HasValue}}" />
+
+                                        <TextBlock Text="{l:Loc Log.Details.LuaFrames}" Style="{StaticResource PanelSection}"
+                                                   Visibility="{Binding LuaFrames, Converter={StaticResource HasValue}}" />
+                                        <ItemsControl ItemsSource="{Binding LuaFrames}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBox Text="{Binding Mode=OneWay}" Style="{StaticResource ValueBox}" FontFamily="Consolas" Margin="0,0,0,2" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="{Binding IgnoredHeader}">
+                <DockPanel Margin="0,8,0,0">
+                    <TextBlock DockPanel.Dock="Top" Text="{l:Loc Ignored.Hint}" Style="{StaticResource SecondaryText}" Margin="0,0,0,8" />
+                    <DataGrid x:Name="IgnoredGrid" ColumnHeaderStyle="{StaticResource ColumnHeader}" ItemsSource="{Binding IgnoredFolders}" AutoGenerateColumns="False"
+                              IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None" SelectionMode="Single">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn v:ColumnInfo.Key="Name" Header="{l:Loc Ignored.Column.Name}" Binding="{Binding Name}" Width="260" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="Id" Header="{l:Loc Ignored.Column.Id}" Binding="{Binding Id}" Width="220" ElementStyle="{StaticResource CenterCell}" />
+                            <DataGridTextColumn v:ColumnInfo.Key="Reason" Header="{l:Loc Ignored.Column.Reason}" Binding="{Binding Reason}" Width="220" ElementStyle="{StaticResource WrapCell}" />
+                            <DataGridTemplateColumn v:ColumnInfo.Key="Workshop" Header="{l:Loc Ignored.Column.Workshop}" Width="300" SortMemberPath="WorkshopText"
+                                                    ClipboardContentBinding="{Binding WorkshopUrl}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding WorkshopText}" Style="{StaticResource LinkButton}" VerticalAlignment="Center" ToolTip="{Binding WorkshopUrl}"
+                                                Command="{Binding DataContext.OpenLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding WorkshopUrl}"
+                                                Visibility="{Binding WorkshopUrl, Converter={StaticResource HasValue}}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn v:ColumnInfo.Key="Note" Header="{l:Loc Ignored.Column.Note}" Binding="{Binding Note}" Width="340">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource WrapCell}">
+                                        <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn v:ColumnInfo.Key="Folder" Header="{l:Loc Ignored.Column.Folder}" Binding="{Binding Directory}" Width="700" ElementStyle="{StaticResource CenterCell}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="{l:Loc Tabs.Environment}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="4,10,4,4">
+                        <ItemsControl ItemsSource="{Binding EnvironmentRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="200" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Label}" Style="{StaticResource SecondaryText}" />
+                                        <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" Style="{StaticResource ValueBox}"
+                                                 Visibility="{Binding Link, Converter={StaticResource HasValue}, ConverterParameter=Invert}" />
+                                        <Button Grid.Column="1" Content="{Binding Value}" Style="{StaticResource LinkButton}"
+                                                Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Link}"
+                                                Visibility="{Binding Link, Converter={StaticResource HasValue}}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Status -->
+        <DockPanel Grid.Row="5" Margin="2,8,2,0">
+            <TextBlock DockPanel.Dock="Right" Text="{Binding WorkshopStatus}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center"
+                       Margin="12,0,0,0" />
+            <ProgressBar DockPanel.Dock="Left" Width="60" Height="4" IsIndeterminate="True" Margin="0,0,10,0" VerticalAlignment="Center"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center" />
+        </DockPanel>
+    </Grid>
+</Window>
