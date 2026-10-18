@@ -88,10 +88,6 @@ dotnet publish src/PZModInspector.Cli -p:PublishProfile=win-x64
 Adding `-p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true`
 the exe also includes the runtime and runs on any PC (about 60 MB).
 
-## Languages
-
-The program is in English and Italian, chosen from Windows or in the Settings. The command line is English only.
-
 ## License
 
 The code is released under the [MIT](LICENSE) license.
