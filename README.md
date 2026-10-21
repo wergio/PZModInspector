@@ -8,6 +8,8 @@ And if you'd rather outsource the detective work to an AI agent the command-line
 
 It reads the game's files **read-only**: it never changes your saves or your mod folders. Build 41 not supported, only Build 42+. Single player only.
 
+![PZ Mod Inspector: mod list with errors and warnings](screenshot.png)
+
 ## What it does
 
 - **Finds everything by itself**: Steam, the game folder and version, and the `Zomboid` folder with your user data.
